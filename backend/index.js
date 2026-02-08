@@ -2,10 +2,13 @@ const express = require('express');
 const morgan = require('morgan');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+const passport = require('./config/passport');
 require('dotenv').config();
 
 const sequelize = require('./config/db');
 const corsMiddleware = require('./middleware/cors');
+const authRoutes = require('./routes/auth');
+const publicRoutes = require('./routes/public');
 const userRoutes = require('./routes/users');
 const eventRoutes = require('./routes/events');
 
@@ -15,6 +18,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(express.json());
 app.use(corsMiddleware);
+app.use(passport.initialize());
 
 // Logging middleware
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
@@ -26,8 +30,20 @@ const swaggerOptions = {
         info: {
             title: 'Events Management API',
             version: '1.0.0',
-            description: 'API for managing events and users with soft delete support',
+            description: 'API for managing events and users with soft delete support and JWT Auth',
         },
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                },
+            },
+        },
+        security: [{
+            bearerAuth: []
+        }],
         servers: [
             {
                 url: `http://localhost:${PORT}`,
@@ -50,8 +66,13 @@ app.get('/', (req, res) => {
 });
 
 // Routes
-app.use('/users', userRoutes);
-app.use('/events', eventRoutes);
+app.use('/auth', authRoutes);
+app.use('/public', publicRoutes);
+
+// Protected Routes
+const requireAuth = passport.authenticate('jwt', { session: false });
+app.use('/users', requireAuth, userRoutes);
+app.use('/events', requireAuth, eventRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
