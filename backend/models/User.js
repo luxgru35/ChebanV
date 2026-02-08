@@ -1,4 +1,5 @@
 const { DataTypes } = require('sequelize');
+const bcrypt = require('bcryptjs');
 const sequelize = require('../config/db');
 
 const User = sequelize.define('User', {
@@ -23,6 +24,14 @@ const User = sequelize.define('User', {
             notEmpty: true,
         },
     },
+    password: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            notEmpty: true,
+            len: [6, 100],
+        },
+    },
     deletedAt: {
         type: DataTypes.DATE,
         allowNull: true,
@@ -30,7 +39,26 @@ const User = sequelize.define('User', {
     },
 }, {
     timestamps: true,
-    paranoid: false, // We'll handle soft delete manually
+    paranoid: false,
+    hooks: {
+        beforeCreate: async (user) => {
+            if (user.password) {
+                const salt = await bcrypt.genSalt(10);
+                user.password = await bcrypt.hash(user.password, salt);
+            }
+        },
+        beforeUpdate: async (user) => {
+            if (user.changed('password')) {
+                const salt = await bcrypt.genSalt(10);
+                user.password = await bcrypt.hash(user.password, salt);
+            }
+        },
+    },
 });
+
+// Method to compare password
+User.prototype.comparePassword = async function (candidatePassword) {
+    return await bcrypt.compare(candidatePassword, this.password);
+};
 
 module.exports = User;

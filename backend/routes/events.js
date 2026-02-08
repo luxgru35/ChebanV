@@ -40,41 +40,7 @@ const { Op } = require('sequelize');
  *           nullable: true
  */
 
-/**
- * @swagger
- * /events:
- *   get:
- *     summary: Get all events (excluding soft-deleted)
- *     tags: [Events]
- *     responses:
- *       200:
- *         description: List of events
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Event'
- */
-router.get('/', async (req, res) => {
-    try {
-        // Only get events that are not soft-deleted
-        const events = await Event.findAll({
-            where: {
-                deletedAt: null
-            },
-            include: [{
-                model: User,
-                as: 'creator',
-                attributes: ['id', 'name', 'email']
-            }]
-        });
-        res.json(events);
-    } catch (error) {
-        console.error('Error fetching events:', error);
-        res.status(500).json({ error: 'Failed to fetch events' });
-    }
-});
+
 
 /**
  * @swagger
