@@ -2,15 +2,15 @@ import express, { Request, Response, NextFunction } from 'express';
 import morgan from 'morgan';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import passport from './config/passport';
+import passport from '@config/passport';
 import dotenv from 'dotenv';
 
-import sequelize from './config/db';
-import corsMiddleware from './middleware/cors';
-import authRoutes from './routes/auth';
-import publicRoutes from './routes/public';
-import userRoutes from './routes/users';
-import eventRoutes from './routes/events';
+import sequelize from '@config/db';
+import corsMiddleware from '@middleware/cors';
+import authRoutes from '@routes/auth';
+import publicRoutes from '@routes/public';
+import userRoutes from '@routes/users';
+import eventRoutes from '@routes/events';
 
 dotenv.config();
 

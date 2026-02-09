@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { sign, SignOptions } from 'jsonwebtoken';
-import User from '../models/User';
-import LoginHistory from '../models/LoginHistory';
-import { sendNewDeviceAlert } from '../services/emailService';
+import User from '@models/User';
+import LoginHistory from '@models/LoginHistory';
+import { sendNewDeviceAlert } from '@services/emailService';
 import dotenv from 'dotenv';
 
 dotenv.config();
