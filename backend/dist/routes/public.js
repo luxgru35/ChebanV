@@ -13,16 +13,25 @@ const router = (0, express_1.Router)();
  *   get:
  *     summary: Get all events (public access, no authentication required)
  *     tags: [Public]
+ *     parameters:
+ *       - in: query
+ *         name: includeDeleted
+ *         schema:
+ *           type: boolean
+ *         description: Include soft-deleted events
  *     responses:
  *       200:
  *         description: List of events
  */
 router.get('/events', async (req, res) => {
     try {
+        const { includeDeleted } = req.query;
+        const where = {};
+        if (includeDeleted !== 'true') {
+            where.deletedAt = null;
+        }
         const events = await Event_1.default.findAll({
-            where: {
-                deletedAt: null
-            },
+            where,
             include: [{
                     model: User_1.default,
                     as: 'creator',
