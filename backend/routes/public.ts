@@ -1,7 +1,8 @@
-const express = require('express');
-const router = express.Router();
-const Event = require('../models/Event');
-const User = require('../models/User');
+import { Router, Request, Response } from 'express';
+import Event from '../models/Event';
+import User from '../models/User';
+
+const router = Router();
 
 /**
  * @swagger
@@ -13,7 +14,7 @@ const User = require('../models/User');
  *       200:
  *         description: List of events
  */
-router.get('/events', async (req, res) => {
+router.get('/events', async (req: Request, res: Response) => {
     try {
         const events = await Event.findAll({
             where: {
@@ -32,4 +33,4 @@ router.get('/events', async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

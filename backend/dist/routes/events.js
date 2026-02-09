@@ -1,9 +1,12 @@
-const express = require('express');
-const router = express.Router();
-const Event = require('../models/Event');
-const User = require('../models/User');
-const { Op } = require('sequelize');
-
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Event_1 = __importDefault(require("../models/Event"));
+const User_1 = __importDefault(require("../models/User"));
+const router = (0, express_1.Router)();
 /**
  * @swagger
  * components:
@@ -39,9 +42,6 @@ const { Op } = require('sequelize');
  *           format: date-time
  *           nullable: true
  */
-
-
-
 /**
  * @swagger
  * /events/{id}:
@@ -62,29 +62,27 @@ const { Op } = require('sequelize');
  */
 router.get('/:id', async (req, res) => {
     try {
-        const event = await Event.findOne({
+        const event = await Event_1.default.findOne({
             where: {
                 id: req.params.id,
                 deletedAt: null
             },
             include: [{
-                model: User,
-                as: 'creator',
-                attributes: ['id', 'name', 'email']
-            }]
+                    model: User_1.default,
+                    as: 'creator',
+                    attributes: ['id', 'name', 'email']
+                }]
         });
-
         if (!event) {
             return res.status(404).json({ error: 'Event not found' });
         }
-
         res.json(event);
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Error fetching event:', error);
         res.status(500).json({ error: 'Failed to fetch event' });
     }
 });
-
 /**
  * @swagger
  * /events:
@@ -120,31 +118,27 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const { title, description, date, createdBy } = req.body;
-
         if (!title || !date || !createdBy) {
             return res.status(400).json({ error: 'Title, date, and createdBy are required' });
         }
-
         // Verify that the user exists and is not soft-deleted
-        const user = await User.findOne({
+        const user = await User_1.default.findOne({
             where: {
                 id: createdBy,
                 deletedAt: null
             }
         });
-
         if (!user) {
             return res.status(400).json({ error: 'User not found or has been deleted' });
         }
-
-        const event = await Event.create({ title, description, date, createdBy });
+        const event = await Event_1.default.create({ title, description, date, createdBy });
         res.status(201).json(event);
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Error creating event:', error);
         res.status(500).json({ error: 'Failed to create event' });
     }
 });
-
 /**
  * @swagger
  * /events/{id}:
@@ -179,31 +173,30 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
     try {
-        const event = await Event.findOne({
+        const event = await Event_1.default.findOne({
             where: {
                 id: req.params.id,
                 deletedAt: null
             }
         });
-
         if (!event) {
             return res.status(404).json({ error: 'Event not found' });
         }
-
         const { title, description, date } = req.body;
-
-        if (title !== undefined) event.title = title;
-        if (description !== undefined) event.description = description;
-        if (date !== undefined) event.date = date;
-
+        if (title !== undefined)
+            event.title = title;
+        if (description !== undefined)
+            event.description = description;
+        if (date !== undefined)
+            event.date = date;
         await event.save();
         res.json(event);
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Error updating event:', error);
         res.status(500).json({ error: 'Failed to update event' });
     }
 });
-
 /**
  * @swagger
  * /events/{id}:
@@ -224,26 +217,23 @@ router.put('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
     try {
-        const event = await Event.findOne({
+        const event = await Event_1.default.findOne({
             where: {
                 id: req.params.id,
                 deletedAt: null
             }
         });
-
         if (!event) {
             return res.status(404).json({ error: 'Event not found' });
         }
-
         // Soft delete: set deletedAt to current timestamp
         event.deletedAt = new Date();
         await event.save();
-
         res.json({ message: 'Event deleted successfully', event });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Error deleting event:', error);
         res.status(500).json({ error: 'Failed to delete event' });
     }
 });
-
-module.exports = router;
+exports.default = router;

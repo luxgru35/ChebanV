@@ -1,16 +1,18 @@
-const express = require('express');
-const morgan = require('morgan');
-const swaggerJsdoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
-const passport = require('./config/passport');
-require('dotenv').config();
+import express, { Request, Response, NextFunction } from 'express';
+import morgan from 'morgan';
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+import passport from './config/passport';
+import dotenv from 'dotenv';
 
-const sequelize = require('./config/db');
-const corsMiddleware = require('./middleware/cors');
-const authRoutes = require('./routes/auth');
-const publicRoutes = require('./routes/public');
-const userRoutes = require('./routes/users');
-const eventRoutes = require('./routes/events');
+import sequelize from './config/db';
+import corsMiddleware from './middleware/cors';
+import authRoutes from './routes/auth';
+import publicRoutes from './routes/public';
+import userRoutes from './routes/users';
+import eventRoutes from './routes/events';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,7 +26,7 @@ app.use(passport.initialize());
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
 
 // Swagger configuration
-const swaggerOptions = {
+const swaggerOptions: swaggerJsdoc.Options = {
     definition: {
         openapi: '3.0.0',
         info: {
@@ -51,14 +53,14 @@ const swaggerOptions = {
             },
         ],
     },
-    apis: ['./routes/*.js'],
+    apis: ['./routes/*.ts'], // Updated to look for .ts files
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Test route
-app.get('/', (req, res) => {
+app.get('/', (req: Request, res: Response) => {
     res.json({
         message: 'Events Management API',
         documentation: `http://localhost:${PORT}/api-docs`
@@ -75,7 +77,7 @@ app.use('/users', requireAuth, userRoutes);
 app.use('/events', requireAuth, eventRoutes);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     console.error('Error:', err.message);
 
     if (err.message === 'Not allowed by CORS') {
