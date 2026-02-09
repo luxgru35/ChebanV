@@ -1,8 +1,8 @@
-const express = require('express');
-const router = express.Router();
-const Event = require('../models/Event');
-const User = require('../models/User');
-const { Op } = require('sequelize');
+import { Router, Request, Response } from 'express';
+import Event from '@models/Event';
+import User from '@models/User';
+
+const router = Router();
 
 /**
  * @swagger
@@ -40,8 +40,6 @@ const { Op } = require('sequelize');
  *           nullable: true
  */
 
-
-
 /**
  * @swagger
  * /events/{id}:
@@ -60,7 +58,7 @@ const { Op } = require('sequelize');
  *       404:
  *         description: Event not found
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: Request, res: Response) => {
     try {
         const event = await Event.findOne({
             where: {
@@ -117,7 +115,7 @@ router.get('/:id', async (req, res) => {
  *       400:
  *         description: Validation error
  */
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request, res: Response) => {
     try {
         const { title, description, date, createdBy } = req.body;
 
@@ -177,7 +175,7 @@ router.post('/', async (req, res) => {
  *       404:
  *         description: Event not found
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: Request, res: Response) => {
     try {
         const event = await Event.findOne({
             where: {
@@ -222,7 +220,7 @@ router.put('/:id', async (req, res) => {
  *       404:
  *         description: Event not found
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: Request, res: Response) => {
     try {
         const event = await Event.findOne({
             where: {
@@ -246,4 +244,4 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

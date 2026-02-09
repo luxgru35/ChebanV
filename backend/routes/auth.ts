@@ -1,10 +1,12 @@
-const express = require('express');
-const router = express.Router();
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const LoginHistory = require('../models/LoginHistory');
-const { sendNewDeviceAlert } = require('../services/emailService');
-require('dotenv').config();
+import { Router, Request, Response } from 'express';
+import { sign, SignOptions } from 'jsonwebtoken';
+import User from '@models/User';
+import LoginHistory from '@models/LoginHistory';
+import { sendNewDeviceAlert } from '@services/emailService';
+import dotenv from 'dotenv';
+
+dotenv.config();
+const router = Router();
 
 /**
  * @swagger
@@ -58,7 +60,7 @@ require('dotenv').config();
  *       400:
  *         description: Email already exists or validation error
  */
-router.post('/register', async (req, res) => {
+router.post('/register', async (req: Request, res: Response) => {
     try {
         const { name, email, password } = req.body;
 
@@ -81,10 +83,10 @@ router.post('/register', async (req, res) => {
         const user = await User.create({ name, email, password });
 
         // Generate JWT token
-        const token = jwt.sign(
+        const token = sign(
             { id: user.id, email: user.email },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
+            process.env.JWT_SECRET as string,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '1h' } as SignOptions
         );
 
         res.status(201).json({
@@ -96,7 +98,7 @@ router.post('/register', async (req, res) => {
                 email: user.email,
             },
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Registration error:', error);
         res.status(500).json({ error: 'Failed to register user' });
     }
@@ -132,7 +134,7 @@ router.post('/register', async (req, res) => {
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', async (req, res) => {
+router.post('/login', async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
 
@@ -171,29 +173,29 @@ router.post('/login', async (req, res) => {
         });
 
         const isNewDevice = !recentLogins.some(
-            (login) => login.ipAddress === ipAddress && login.userAgent === userAgent
+            (login) => login.ipAddress === (ipAddress as string) && login.userAgent === (userAgent as string)
         );
 
         // Save login history
         await LoginHistory.create({
             userId: user.id,
-            ipAddress,
-            userAgent,
+            ipAddress: ipAddress as string,
+            userAgent: userAgent as string,
             loginAt: new Date(),
         });
 
         // Send email if new device/IP detected (variant 20)
         if (isNewDevice && recentLogins.length > 0) {
             // Only send if user has logged in before
-            sendNewDeviceAlert(user.email, user.name, ipAddress, userAgent, new Date())
-                .catch((err) => console.error('Email sending failed:', err));
+            sendNewDeviceAlert(user.email, user.name, ipAddress as string, userAgent as string, new Date())
+                .catch((err: any) => console.error('Email sending failed:', err));
         }
 
         // Generate JWT token
-        const token = jwt.sign(
+        const token = sign(
             { id: user.id, email: user.email },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
+            process.env.JWT_SECRET as string,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '1h' } as SignOptions
         );
 
         res.json({
@@ -206,10 +208,10 @@ router.post('/login', async (req, res) => {
             },
             newDeviceDetected: isNewDevice && recentLogins.length > 0,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Login error:', error);
         res.status(500).json({ error: 'Failed to login' });
     }
 });
 
-module.exports = router;
+export default router;
