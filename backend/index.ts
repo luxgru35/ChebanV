@@ -6,6 +6,7 @@ import passport from '@config/passport';
 import dotenv from 'dotenv';
 
 import sequelize from '@config/db';
+import '@models/index'; // Import to init associations
 import corsMiddleware from '@middleware/cors';
 import authRoutes from '@routes/auth';
 import publicRoutes from '@routes/public';

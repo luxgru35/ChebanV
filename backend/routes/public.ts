@@ -35,6 +35,11 @@ router.get('/events', async (req: Request, res: Response) => {
                 model: User,
                 as: 'creator',
                 attributes: ['id', 'name', 'email']
+            }, {
+                model: User,
+                as: 'participants',
+                attributes: ['id', 'name', 'email'],
+                through: { attributes: [] }
             }]
         });
         res.json(events);

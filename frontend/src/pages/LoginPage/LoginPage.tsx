@@ -1,30 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { login } from '../../api/authService';
-import { setToken, setUser } from '../../utils/localStorage';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { loginUser, clearError } from '../../store/slices/authSlice';
 import styles from './LoginPage.module.scss';
+
+import { selectAuth } from '../../store/selectors';
 
 const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+    const dispatch = useAppDispatch();
+    const { isLoading, error, token } = useAppSelector(selectAuth);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        if (token) {
+            navigate('/events');
+        }
+    }, [token, navigate]);
+
+    useEffect(() => {
+        return () => {
+            dispatch(clearError());
+        }
+    }, [dispatch]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        try {
-            const data = await login(email, password);
-            setToken(data.token);
-            setUser(data.user);
-            navigate('/events');
-        } catch (err: any) {
-            setError(err.response?.data?.error || 'Login failed');
-        }
+        dispatch(loginUser({ email, password }));
     };
 
     return (
         <div className={styles.container}>
-            <h2>Login</h2>
+            <h2>Вход</h2>
             {error && <div className={styles.error}>{error}</div>}
             <form onSubmit={handleSubmit} className={styles.form}>
                 <div className={styles.formGroup}>
@@ -37,7 +45,7 @@ const LoginPage: React.FC = () => {
                     />
                 </div>
                 <div className={styles.formGroup}>
-                    <label>Password</label>
+                    <label>Пароль</label>
                     <input
                         type="password"
                         value={password}
@@ -45,10 +53,12 @@ const LoginPage: React.FC = () => {
                         required
                     />
                 </div>
-                <button type="submit" className={styles.button}>Login</button>
+                <button type="submit" className={styles.button} disabled={isLoading}>
+                    {isLoading ? 'Загрузка...' : 'Войти'}
+                </button>
             </form>
             <p>
-                Don't have an account? <Link to="/register">Register here</Link>
+                Нет аккаунта? <Link to="/register">Зарегистрируйтесь здесь</Link>
             </p>
         </div>
     );

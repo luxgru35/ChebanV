@@ -16,6 +16,11 @@ export interface Event {
         email: string;
     };
     deletedAt?: string | null;
+    participants?: {
+        id: number;
+        name: string;
+        email: string;
+    }[];
 }
 
 export interface AuthResponse {

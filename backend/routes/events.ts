@@ -1,73 +1,103 @@
 import { Router, Request, Response } from 'express';
-import Event from '@models/Event';
-import User from '@models/User';
+import Event from '../models/Event';
+import User from '../models/User';
+import EventParticipant from '../models/EventParticipant';
 
 const router = Router();
 
-/**
- * @swagger
- * components:
- *   schemas:
- *     Event:
- *       type: object
- *       required:
- *         - title
- *         - date
- *         - createdBy
- *       properties:
- *         id:
- *           type: integer
- *           description: Auto-generated event ID
- *         title:
- *           type: string
- *           description: Event title
- *         description:
- *           type: string
- *           description: Event description
- *         date:
- *           type: string
- *           format: date-time
- *           description: Event date
- *         createdBy:
- *           type: integer
- *           description: ID of user who created the event
- *         createdAt:
- *           type: string
- *           format: date-time
- *         deletedAt:
- *           type: string
- *           format: date-time
- *           nullable: true
- */
-
-/**
- * @swagger
- * /events/{id}:
- *   get:
- *     summary: Get event by ID
- *     tags: [Events]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Event details
- *       404:
- *         description: Event not found
- */
-router.get('/:id', async (req: Request, res: Response) => {
+// Create Event
+router.post('/', async (req: Request, res: Response) => {
     try {
-        const event = await Event.findOne({
-            where: {
-                id: req.params.id,
-                deletedAt: null
-            },
+        const { title, description, date } = req.body;
+        const event = await Event.create({
+            title,
+            description,
+            date,
+            createdBy: (req.user as User).id,
+        });
+        res.status(201).json(event);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create event' });
+    }
+});
+
+// Update Event
+router.put('/:id', async (req: Request, res: Response) => {
+    try {
+        const event = await Event.findByPk(req.params.id as string);
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        if (event.createdBy !== (req.user as User).id) {
+            return res.status(403).json({ error: 'Not authorized' });
+        }
+        await event.update(req.body);
+        res.json(event);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update event' });
+    }
+});
+
+// Delete (Soft)
+router.delete('/:id', async (req: Request, res: Response) => {
+    try {
+        const event = await Event.findByPk(req.params.id as string);
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        if (event.createdBy !== (req.user as User).id) {
+            return res.status(403).json({ error: 'Not authorized' });
+        }
+        // Soft delete - set deletedAt instead of actually deleting
+        event.deletedAt = new Date();
+        await event.save();
+        res.json({ message: 'Event soft deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete event' });
+    }
+});
+
+// Participate Toggle
+router.post('/:id/participate', async (req: Request, res: Response) => {
+    try {
+        const eventId = parseInt(req.params.id as string);
+        const userId = (req.user as User).id;
+
+        const event = await Event.findByPk(eventId);
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        // "В мероприятиях созданных пользователем кнопка должна отсутствовать" (Frontend check),
+        // but backend should also probably block or allow?
+        // Logic says "У мероприятий созданных ДРУГИМИ пользователями".
+        if (event.createdBy === userId) {
+            return res.status(400).json({ error: 'Cannot participate in your own event' });
+        }
+
+        const existing = await EventParticipant.findOne({ where: { userId, eventId } });
+
+        if (existing) {
+            await existing.destroy();
+            res.json({ message: 'Participation canceled', participating: false });
+        } else {
+            await EventParticipant.create({ userId, eventId });
+            res.json({ message: 'Participating', participating: true });
+        }
+    } catch (error) {
+        console.error('Participate error:', error);
+        res.status(500).json({ error: 'Failed to toggle participation' });
+    }
+});
+
+// Get Participants
+router.get('/:id/participants', async (req: Request, res: Response) => {
+    try {
+        const eventId = parseInt(req.params.id as string);
+        const event = await Event.findByPk(eventId, {
             include: [{
                 model: User,
-                as: 'creator',
+                as: 'participants',
                 attributes: ['id', 'name', 'email']
             }]
         });
@@ -76,171 +106,9 @@ router.get('/:id', async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Event not found' });
         }
 
-        res.json(event);
+        res.json((event as any).participants);
     } catch (error) {
-        console.error('Error fetching event:', error);
-        res.status(500).json({ error: 'Failed to fetch event' });
-    }
-});
-
-/**
- * @swagger
- * /events:
- *   post:
- *     summary: Create a new event
- *     tags: [Events]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - title
- *               - date
- *               - createdBy
- *             properties:
- *               title:
- *                 type: string
- *               description:
- *                 type: string
- *               date:
- *                 type: string
- *                 format: date-time
- *               createdBy:
- *                 type: integer
- *     responses:
- *       201:
- *         description: Event created successfully
- *       400:
- *         description: Validation error
- */
-router.post('/', async (req: Request, res: Response) => {
-    try {
-        const { title, description, date, createdBy } = req.body;
-
-        if (!title || !date || !createdBy) {
-            return res.status(400).json({ error: 'Title, date, and createdBy are required' });
-        }
-
-        // Verify that the user exists and is not soft-deleted
-        const user = await User.findOne({
-            where: {
-                id: createdBy,
-                deletedAt: null
-            }
-        });
-
-        if (!user) {
-            return res.status(400).json({ error: 'User not found or has been deleted' });
-        }
-
-        const event = await Event.create({ title, description, date, createdBy });
-        res.status(201).json(event);
-    } catch (error) {
-        console.error('Error creating event:', error);
-        res.status(500).json({ error: 'Failed to create event' });
-    }
-});
-
-/**
- * @swagger
- * /events/{id}:
- *   put:
- *     summary: Update an event
- *     tags: [Events]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *               description:
- *                 type: string
- *               date:
- *                 type: string
- *                 format: date-time
- *     responses:
- *       200:
- *         description: Event updated successfully
- *       404:
- *         description: Event not found
- */
-router.put('/:id', async (req: Request, res: Response) => {
-    try {
-        const event = await Event.findOne({
-            where: {
-                id: req.params.id,
-                deletedAt: null
-            }
-        });
-
-        if (!event) {
-            return res.status(404).json({ error: 'Event not found' });
-        }
-
-        const { title, description, date } = req.body;
-
-        if (title !== undefined) event.title = title;
-        if (description !== undefined) event.description = description;
-        if (date !== undefined) event.date = date;
-
-        await event.save();
-        res.json(event);
-    } catch (error) {
-        console.error('Error updating event:', error);
-        res.status(500).json({ error: 'Failed to update event' });
-    }
-});
-
-/**
- * @swagger
- * /events/{id}:
- *   delete:
- *     summary: Soft delete an event
- *     tags: [Events]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Event soft deleted successfully
- *       404:
- *         description: Event not found
- */
-router.delete('/:id', async (req: Request, res: Response) => {
-    try {
-        const event = await Event.findOne({
-            where: {
-                id: req.params.id,
-                deletedAt: null
-            }
-        });
-
-        if (!event) {
-            return res.status(404).json({ error: 'Event not found' });
-        }
-
-        // Soft delete: set deletedAt to current timestamp
-        event.deletedAt = new Date();
-        await event.save();
-
-        res.json({ message: 'Event deleted successfully', event });
-    } catch (error) {
-        console.error('Error deleting event:', error);
-        res.status(500).json({ error: 'Failed to delete event' });
+        res.status(500).json({ error: 'Failed to get participants' });
     }
 });
 
