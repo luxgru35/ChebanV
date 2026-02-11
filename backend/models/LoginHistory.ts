@@ -1,6 +1,5 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '@config/db';
-import User from './User';
 
 interface LoginHistoryAttributes {
     id: number;
@@ -56,8 +55,6 @@ LoginHistory.init(
     }
 );
 
-// Define associations
-User.hasMany(LoginHistory, { foreignKey: 'userId', as: 'loginHistory' });
-LoginHistory.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+// Associations are defined in models/index.ts to avoid duplication
 
 export default LoginHistory;

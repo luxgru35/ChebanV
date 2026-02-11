@@ -1,3 +1,5 @@
+import type { User } from '../types';
+
 export const setToken = (token: string) => {
     localStorage.setItem('token', token);
 };
@@ -10,15 +12,15 @@ export const removeToken = () => {
     localStorage.removeItem('token');
 };
 
-export const setUser = (user: any) => {
+export const setUser = (user: User) => {
     localStorage.setItem('user', JSON.stringify(user));
 };
 
-export const getUser = (): any | null => {
+export const getUser = (): User | null => {
     const userStr = localStorage.getItem('user');
     if (userStr) {
         try {
-            return JSON.parse(userStr);
+            return JSON.parse(userStr) as User;
         } catch (e) {
             console.error('Error parsing user from local storage', e);
             return null;

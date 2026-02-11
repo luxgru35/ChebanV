@@ -1,83 +1,142 @@
 import React, { useEffect, useState } from 'react';
-import { getEvents } from '../../api/eventService';
-import type { Event } from '../../types';
-import { getUser, removeToken, removeUser } from '../../utils/localStorage';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchEvents, toggleParticipation } from '../../store/slices/eventsSlice';
+import { logoutUser } from '../../store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import styles from './EventsPage.module.scss';
+import classNames from 'classnames';
+
+import { selectEventsState, selectUser, selectAuth } from '../../store/selectors';
 
 const EventsPage: React.FC = () => {
-    const [events, setEvents] = useState<Event[]>([]);
-    const [includeDeleted, setIncludeDeleted] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const dispatch = useAppDispatch();
     const navigate = useNavigate();
-    const user = getUser();
+    const { list: events, status, error } = useAppSelector(selectEventsState);
+    const user = useAppSelector(selectUser);
+    const { user: authUser } = useAppSelector(selectAuth);
+    const [includeDeleted, setIncludeDeleted] = useState(false);
+
+    // Modal state
+    const [showModal, setShowModal] = useState(false);
+    const [modalParticipants, setModalParticipants] = useState<{ id: number, name: string }[]>([]);
 
     useEffect(() => {
-        fetchEvents();
-    }, [includeDeleted]);
+        dispatch(fetchEvents(includeDeleted));
+    }, [dispatch, includeDeleted]);
 
-    const fetchEvents = async () => {
-        setLoading(true);
-        try {
-            const data = await getEvents(includeDeleted);
-            setEvents(data);
-        } catch (err) {
-            setError('Failed to load events');
-        } finally {
-            setLoading(false);
+    const handleToggleDeleted = () => {
+        setIncludeDeleted(!includeDeleted);
+    };
+
+    const handleParticipate = (eventId: number) => {
+        if (user) {
+            dispatch(toggleParticipation({ eventId, userId: user.id, user: { id: user.id, name: user.name, email: user.email } }));
         }
     };
 
+    const openParticipantsModal = (participants: { id: number, name: string }[] | undefined) => {
+        if (participants && participants.length > 0) {
+            setModalParticipants(participants);
+            setShowModal(true);
+        }
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setModalParticipants([]);
+    };
+
     const handleLogout = () => {
-        removeToken();
-        removeUser();
-        navigate('/login');
+        dispatch(logoutUser());
+        navigate('/');
     };
 
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <div className={styles.userInfo}>
-                    Logged in as: <strong>{user?.name}</strong>
+            <div className={styles.topBar}>
+                <div className={styles.nav}>
+                    <Link to="/" className={styles.navLink}>Главная</Link>
+                    {authUser && (
+                        <>
+                            <span className={styles.userInfo}>Добро пожаловать, {authUser.name}</span>
+                            <Link to="/profile" className={styles.navLink}>Профиль</Link>
+                            <button onClick={handleLogout} className={styles.logoutButton}>Выйти</button>
+                        </>
+                    )}
                 </div>
-                <button onClick={handleLogout} className={styles.logoutButton}>Logout</button>
-            </header>
-
-            <div className={styles.controls}>
-                <h1>Events</h1>
-                {/* Variant 20: Switch for Deleted Events */}
-                <label className={styles.switch}>
-                    <input
-                        type="checkbox"
-                        checked={includeDeleted}
-                        onChange={(e) => setIncludeDeleted(e.target.checked)}
-                    />
-                    <span className={styles.slider}></span>
-                    Show Deleted Events
-                </label>
+            </div>
+            <div className={styles.header}>
+                <h1>Мероприятия</h1>
+                <div className={styles.controls}>
+                    <label className={styles.switch}>
+                        <input
+                            type="checkbox"
+                            checked={includeDeleted}
+                            onChange={handleToggleDeleted}
+                        />
+                        <span className={styles.slider}></span>
+                    </label>
+                    <span className={styles.switchLabel}>Показать удаленные</span>
+                </div>
             </div>
 
-            {loading && <p>Loading...</p>}
+            {status === 'loading' && <p>Загрузка мероприятий...</p>}
             {error && <p className={styles.error}>{error}</p>}
 
             <div className={styles.grid}>
-                {events.map(event => (
-                    <div key={event.id} className={`${styles.card} ${event.deletedAt ? styles.deleted : ''}`}>
-                        <h3>{event.title}</h3>
-                        <p>{event.description}</p>
-                        <p className={styles.date}>Date: {new Date(event.date).toLocaleDateString()}</p>
-                        <p className={styles.author}>By: {event.creator?.name}</p>
+                {events.map((event) => {
+                    const isOwner = user?.id === event.createdBy;
+                    const isParticipating = event.participants?.some(p => p.id === user?.id);
+                    const participantsCount = event.participants?.length || 0;
 
-                        {/* Variant 20: Show deleted date */}
-                        {event.deletedAt && (
-                            <div className={styles.deletedInfo}>
-                                Deleted at: {new Date(event.deletedAt).toLocaleString()}
+                    return (
+                        <div key={event.id} className={classNames(styles.card, { [styles.deleted]: event.deletedAt })}>
+                            <h2>{event.title}</h2>
+                            <p className={styles.date}>{new Date(event.date).toLocaleDateString('ru-RU')}</p>
+                            {event.description && <p>{event.description}</p>}
+                            {event.deletedAt && (
+                                <p className={styles.deletedDate}>
+                                    Удалено: {new Date(event.deletedAt).toLocaleDateString('ru-RU')}
+                                </p>
+                            )}
+
+                            <div className={styles.footer}>
+                                <div className={styles.participants} onClick={() => {
+                                    const participantsList = event.participants?.map(p => ({ id: p.id, name: p.name })) || [];
+                                    openParticipantsModal(participantsList);
+                                }}>
+                                    Участников: <strong>{participantsCount}</strong>
+                                </div>
+
+                                {!isOwner && user && !event.deletedAt && (
+                                    <button
+                                        className={classNames(styles.participateButton, { [styles.participating]: isParticipating })}
+                                        onClick={() => handleParticipate(event.id)}
+                                    >
+                                        {isParticipating ? 'Отменить участие' : 'Участвовать'}
+                                    </button>
+                                )}
                             </div>
-                        )}
-                    </div>
-                ))}
+                        </div>
+                    );
+                })}
             </div>
+
+            {/* Modal */}
+            {showModal && (
+                <div className={styles.modalOverlay} onClick={closeModal}>
+                    <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+                        <button className={styles.closeButton} onClick={closeModal}>&times;</button>
+                        <h3>Участники</h3>
+                        <ul>
+                            {modalParticipants.map(p => (
+                                <li key={p.id}>{p.name}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
